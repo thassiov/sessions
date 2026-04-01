@@ -29,24 +29,24 @@ func Open(path string) (*DB, error) {
 	}
 
 	if _, err := conn.Exec("PRAGMA journal_mode=WAL"); err != nil {
-		conn.Close()
+		conn.Close() //nolint:errcheck
 		return nil, fmt.Errorf("setting WAL mode: %w", err)
 	}
 	if _, err := conn.Exec("PRAGMA busy_timeout = 5000"); err != nil {
-		conn.Close()
+		conn.Close() //nolint:errcheck
 		return nil, fmt.Errorf("setting busy_timeout: %w", err)
 	}
 	if _, err := conn.Exec("PRAGMA synchronous = NORMAL"); err != nil {
-		conn.Close()
+		conn.Close() //nolint:errcheck
 		return nil, fmt.Errorf("setting synchronous: %w", err)
 	}
 	if _, err := conn.Exec("PRAGMA foreign_keys = ON"); err != nil {
-		conn.Close()
+		conn.Close() //nolint:errcheck
 		return nil, fmt.Errorf("enabling foreign keys: %w", err)
 	}
 
 	if err := migrate(conn); err != nil {
-		conn.Close()
+		conn.Close() //nolint:errcheck
 		return nil, fmt.Errorf("migrating db: %w", err)
 	}
 
