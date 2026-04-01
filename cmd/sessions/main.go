@@ -1,3 +1,4 @@
+// Package main provides the sessions CLI for searching and indexing Claude Code sessions.
 package main
 
 import (
@@ -107,7 +108,7 @@ func newSearchCmd(dbPath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer database.Close() //nolint:errcheck
+			defer database.Close() //nolint:errcheck // closed on command exit
 
 			if err := ensureIndexed(database, dbPath); err != nil {
 				return err
@@ -121,9 +122,9 @@ func newSearchCmd(dbPath *string) *cobra.Command {
 				fmt.Printf("No results for: %s\n", query)
 				return nil
 			}
-			fmt.Printf("\n%d results for \"%s\"\n\n", len(results), query)
-			for _, r := range results {
-				fmt.Println(search.FormatResult(r))
+			fmt.Printf("\n%d results for %q\n\n", len(results), query)
+			for i := range results {
+				fmt.Println(search.FormatResult(results[i]))
 				fmt.Println()
 			}
 			return nil
@@ -145,7 +146,7 @@ func newFindCmd(dbPath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer database.Close() //nolint:errcheck
+			defer database.Close() //nolint:errcheck // closed on command exit
 
 			if err := ensureIndexed(database, dbPath); err != nil {
 				return err
@@ -165,8 +166,8 @@ func newFindCmd(dbPath *string) *cobra.Command {
 				return nil
 			}
 			fmt.Printf("\n%d sessions\n\n", len(results))
-			for _, r := range results {
-				fmt.Println(search.FormatResult(r))
+			for i := range results {
+				fmt.Println(search.FormatResult(results[i]))
 				fmt.Println()
 			}
 			return nil
@@ -205,7 +206,7 @@ func newRecentCmd(dbPath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer database.Close() //nolint:errcheck
+			defer database.Close() //nolint:errcheck // closed on command exit
 
 			if err := ensureIndexed(database, dbPath); err != nil {
 				return err
@@ -216,8 +217,8 @@ func newRecentCmd(dbPath *string) *cobra.Command {
 				return err
 			}
 			fmt.Printf("\nLast %d sessions\n\n", len(results))
-			for _, r := range results {
-				fmt.Println(search.FormatResult(r))
+			for i := range results {
+				fmt.Println(search.FormatResult(results[i]))
 				fmt.Println()
 			}
 			return nil
@@ -240,7 +241,7 @@ func newToolsCmd(dbPath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer database.Close() //nolint:errcheck
+			defer database.Close() //nolint:errcheck // closed on command exit
 
 			results, err := search.ToolsUsage(database.SQL(), toolName, 20)
 			if err != nil {
@@ -262,7 +263,7 @@ func newTopicsCmd(dbPath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer database.Close() //nolint:errcheck
+			defer database.Close() //nolint:errcheck // closed on command exit
 
 			sessionID := args[0]
 			topics, err := search.Topics(database.SQL(), sessionID)
@@ -283,7 +284,7 @@ func newTopicsCmd(dbPath *string) *cobra.Command {
 			database.SQL().QueryRow(
 				"SELECT COALESCE(title_display,''), COALESCE(start_time,''), COALESCE(project_name,'') FROM sessions WHERE session_id LIKE ?",
 				sessionID+"%",
-			).Scan(&title, &startTime, &projectName) //nolint:errcheck
+			).Scan(&title, &startTime, &projectName) //nolint:errcheck // best-effort header info
 
 			fmt.Print(search.FormatTopicTimeline(sessionID, title, startTime, projectName, topics))
 			return nil
@@ -300,7 +301,7 @@ func newStatsCmd(dbPath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer database.Close() //nolint:errcheck
+			defer database.Close() //nolint:errcheck // closed on command exit
 
 			stats, err := search.GetStats(database.SQL())
 			if err != nil {
@@ -329,14 +330,14 @@ func newIndexCmd(dbPath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer database.Close() //nolint:errcheck
+			defer database.Close() //nolint:errcheck // closed on command exit
 
 			logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 				Level: slog.LevelInfo,
 			}))
 
 			if sessionID != "" {
-				if err := index.IndexOne(database, cfg, sessionID); err != nil {
+				if err := index.One(database, cfg, sessionID); err != nil {
 					return err
 				}
 				fmt.Printf("Indexed: %s\n", sessionID)
@@ -387,7 +388,7 @@ func newHookCmd(dbPath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer database.Close() //nolint:errcheck
+			defer database.Close() //nolint:errcheck // closed on command exit
 
 			logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 				Level: slog.LevelInfo,
@@ -414,7 +415,7 @@ func newWatchCmd(dbPath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer database.Close() //nolint:errcheck
+			defer database.Close() //nolint:errcheck // closed on command exit
 
 			logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 				Level: slog.LevelInfo,
@@ -445,7 +446,7 @@ func newContextCmd(dbPath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer database.Close() //nolint:errcheck
+			defer database.Close() //nolint:errcheck // closed on command exit
 
 			sessionID := args[0]
 			query := ""
@@ -476,7 +477,7 @@ func newAnalyticsCmd(dbPath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer database.Close() //nolint:errcheck
+			defer database.Close() //nolint:errcheck // closed on command exit
 
 			result, err := analyze.Analytics(database.SQL(), opts)
 			if err != nil {

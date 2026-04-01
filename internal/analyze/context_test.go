@@ -197,7 +197,7 @@ func TestSummarizeToolCall(t *testing.T) {
 }
 
 func contains(s, sub string) bool {
-	return len(s) >= len(sub) && (s == sub || len(s) > 0 && containsSubstring(s, sub))
+	return len(s) >= len(sub) && (s == sub || s != "" && containsSubstring(s, sub))
 }
 
 func containsSubstring(s, sub string) bool {

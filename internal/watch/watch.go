@@ -4,6 +4,7 @@ package watch
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -43,17 +44,17 @@ func New(database *db.DB, cfg *config.Config, logger *slog.Logger) *Watcher {
 	}
 }
 
-// Run starts the file watcher and blocks until ctx is cancelled.
+// Run starts the file watcher and blocks until ctx is canceled.
 func (w *Watcher) Run(ctx context.Context) error {
 	fsw, err := fsnotify.NewWatcher()
 	if err != nil {
-		return err
+		return fmt.Errorf("creating watcher: %w", err)
 	}
-	defer fsw.Close()
+	defer fsw.Close() //nolint:errcheck // cleaned up on return
 
 	// Watch projects dir and all existing subdirs.
 	if err := w.addWatchDirs(fsw); err != nil {
-		return err
+		return fmt.Errorf("adding watch dirs: %w", err)
 	}
 
 	w.logger.Info("watcher started", "dir", w.cfg.ProjectsDir)
@@ -83,12 +84,12 @@ func (w *Watcher) Run(ctx context.Context) error {
 func (w *Watcher) addWatchDirs(fsw *fsnotify.Watcher) error {
 	projectsDir := w.cfg.ProjectsDir
 	if err := fsw.Add(projectsDir); err != nil {
-		return err
+		return fmt.Errorf("watching projects dir: %w", err)
 	}
 
 	entries, err := os.ReadDir(projectsDir)
 	if err != nil {
-		return err
+		return fmt.Errorf("reading projects dir: %w", err)
 	}
 	for _, entry := range entries {
 		if entry.IsDir() {
@@ -162,7 +163,7 @@ func (w *Watcher) indexSession(path string) {
 	var existingHash string
 	w.database.SQL().QueryRow(
 		"SELECT file_hash FROM sessions WHERE session_id=?", sessionID,
-	).Scan(&existingHash) //nolint:errcheck
+	).Scan(&existingHash) //nolint:errcheck // new session has no existing hash
 
 	if existingHash == newHash {
 		return // No change.

@@ -147,7 +147,7 @@ func queryOverview(db *sql.DB, where string, params []interface{}) Overview {
 		       ROUND(AVG(duration_minutes),1), ROUND(AVG(exchange_count),1),
 		       SUM(CASE WHEN has_compaction=1 THEN 1 ELSE 0 END)
 		FROM sessions s %s
-	`, where), params...).Scan(&ov.TotalSessions, &totalMin, &avgDur, &avgEx, &ov.CompactedSessions) //nolint:errcheck
+	`, where), params...).Scan(&ov.TotalSessions, &totalMin, &avgDur, &avgEx, &ov.CompactedSessions) //nolint:errcheck // best-effort stats
 	ov.TotalMinutes = int(totalMin.Float64)
 	ov.AvgDuration = avgDur.Float64
 	ov.AvgExchanges = avgEx.Float64
@@ -164,7 +164,7 @@ func queryTimePerClient(db *sql.DB, where string, params []interface{}) []Client
 	if err != nil {
 		return nil
 	}
-	defer rows.Close() //nolint:errcheck
+	defer rows.Close() //nolint:errcheck // rows closed on function return
 
 	var result []ClientTime
 	for rows.Next() {
@@ -175,6 +175,7 @@ func queryTimePerClient(db *sql.DB, where string, params []interface{}) []Client
 			result = append(result, c)
 		}
 	}
+	_ = rows.Err() // best-effort stats query
 	return result
 }
 
@@ -187,7 +188,7 @@ func queryDailyTrend(db *sql.DB) []DailyEntry {
 	if err != nil {
 		return nil
 	}
-	defer rows.Close() //nolint:errcheck
+	defer rows.Close() //nolint:errcheck // rows closed on function return
 
 	var result []DailyEntry
 	for rows.Next() {
@@ -196,6 +197,7 @@ func queryDailyTrend(db *sql.DB) []DailyEntry {
 			result = append(result, d)
 		}
 	}
+	_ = rows.Err() // best-effort stats query
 	return result
 }
 
@@ -210,7 +212,7 @@ func queryTopTools(db *sql.DB, where string, params []interface{}) []ToolEntry {
 	if err != nil {
 		return nil
 	}
-	defer rows.Close() //nolint:errcheck
+	defer rows.Close() //nolint:errcheck // rows closed on function return
 
 	var result []ToolEntry
 	for rows.Next() {
@@ -219,6 +221,7 @@ func queryTopTools(db *sql.DB, where string, params []interface{}) []ToolEntry {
 			result = append(result, t)
 		}
 	}
+	_ = rows.Err() // best-effort stats query
 	return result
 }
 
@@ -242,7 +245,7 @@ func queryToolTrends(db *sql.DB) []ToolTrend {
 	if err != nil {
 		return nil
 	}
-	defer rows.Close() //nolint:errcheck
+	defer rows.Close() //nolint:errcheck // rows closed on function return
 
 	var result []ToolTrend
 	for rows.Next() {
@@ -251,6 +254,7 @@ func queryToolTrends(db *sql.DB) []ToolTrend {
 			result = append(result, t)
 		}
 	}
+	_ = rows.Err() // best-effort stats query
 	return result
 }
 
@@ -265,7 +269,7 @@ func queryTopTopics(db *sql.DB, where string, params []interface{}) []TopicEntry
 	if err != nil {
 		return nil
 	}
-	defer rows.Close() //nolint:errcheck
+	defer rows.Close() //nolint:errcheck // rows closed on function return
 
 	var result []TopicEntry
 	for rows.Next() {
@@ -274,6 +278,7 @@ func queryTopTopics(db *sql.DB, where string, params []interface{}) []TopicEntry
 			result = append(result, t)
 		}
 	}
+	_ = rows.Err() // best-effort stats query
 	return result
 }
 
@@ -286,7 +291,7 @@ func queryByProject(db *sql.DB, where string, params []interface{}) []ProjectEnt
 	if err != nil {
 		return nil
 	}
-	defer rows.Close() //nolint:errcheck
+	defer rows.Close() //nolint:errcheck // rows closed on function return
 
 	var result []ProjectEntry
 	for rows.Next() {
@@ -295,5 +300,6 @@ func queryByProject(db *sql.DB, where string, params []interface{}) []ProjectEnt
 			result = append(result, p)
 		}
 	}
+	_ = rows.Err() // best-effort stats query
 	return result
 }

@@ -3,12 +3,13 @@ package db
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"time"
 
-	_ "modernc.org/sqlite"
+	_ "modernc.org/sqlite" // SQLite driver registration
 )
 
 // DB wraps the session index database.
@@ -29,24 +30,24 @@ func Open(path string) (*DB, error) {
 	}
 
 	if _, err := conn.Exec("PRAGMA journal_mode=WAL"); err != nil {
-		conn.Close() //nolint:errcheck
+		conn.Close() //nolint:errcheck // best-effort cleanup on init failure
 		return nil, fmt.Errorf("setting WAL mode: %w", err)
 	}
 	if _, err := conn.Exec("PRAGMA busy_timeout = 5000"); err != nil {
-		conn.Close() //nolint:errcheck
+		conn.Close() //nolint:errcheck // best-effort cleanup on init failure
 		return nil, fmt.Errorf("setting busy_timeout: %w", err)
 	}
 	if _, err := conn.Exec("PRAGMA synchronous = NORMAL"); err != nil {
-		conn.Close() //nolint:errcheck
+		conn.Close() //nolint:errcheck // best-effort cleanup on init failure
 		return nil, fmt.Errorf("setting synchronous: %w", err)
 	}
 	if _, err := conn.Exec("PRAGMA foreign_keys = ON"); err != nil {
-		conn.Close() //nolint:errcheck
+		conn.Close() //nolint:errcheck // best-effort cleanup on init failure
 		return nil, fmt.Errorf("enabling foreign keys: %w", err)
 	}
 
 	if err := migrate(conn); err != nil {
-		conn.Close() //nolint:errcheck
+		conn.Close() //nolint:errcheck // best-effort cleanup on init failure
 		return nil, fmt.Errorf("migrating db: %w", err)
 	}
 
@@ -55,7 +56,10 @@ func Open(path string) (*DB, error) {
 
 // Close closes the database.
 func (d *DB) Close() error {
-	return d.db.Close()
+	if err := d.db.Close(); err != nil {
+		return fmt.Errorf("closing db: %w", err)
+	}
+	return nil
 }
 
 // SQL returns the underlying sql.DB for direct queries.
@@ -143,7 +147,7 @@ func migrate(db *sql.DB) error {
 	err = db.QueryRow(
 		"SELECT name FROM sqlite_master WHERE type='table' AND name='session_content'",
 	).Scan(&name)
-	if err == sql.ErrNoRows || !name.Valid {
+	if errors.Is(err, sql.ErrNoRows) || !name.Valid {
 		_, err = db.Exec(`
 			CREATE VIRTUAL TABLE session_content USING fts5(
 				session_id,
@@ -161,26 +165,26 @@ func migrate(db *sql.DB) error {
 
 // SessionData holds parsed session data ready for upserting.
 type SessionData struct {
-	SessionID      string
-	Project        string
-	ProjectName    string
-	Title          string
-	TitleDisplay   string
-	Tags           string
-	Client         string
-	FilePath       string
-	FileSize       int64
-	ExchangeCount  int
-	StartTime      string
-	EndTime        string
+	SessionID       string
+	Project         string
+	ProjectName     string
+	Title           string
+	TitleDisplay    string
+	Tags            string
+	Client          string
+	FilePath        string
+	FileSize        int64
+	ExchangeCount   int
+	StartTime       string
+	EndTime         string
 	DurationMinutes int
-	Model          string
-	HasCompaction  int
-	FileHash       string
-	Tools          map[string]int
-	Agents         map[string]int
-	FTSContent     string
-	Topics         []TopicEntry
+	Model           string
+	HasCompaction   int
+	FileHash        string
+	Tools           map[string]int
+	Agents          map[string]int
+	FTSContent      string
+	Topics          []TopicEntry
 }
 
 // TopicEntry represents a topic captured during a session.
@@ -197,7 +201,7 @@ func (d *DB) UpsertSession(data *SessionData) error {
 	if err != nil {
 		return fmt.Errorf("beginning transaction: %w", err)
 	}
-	defer tx.Rollback() //nolint:errcheck
+	defer tx.Rollback() //nolint:errcheck // rollback is no-op after commit
 
 	now := time.Now().Format(time.RFC3339)
 
@@ -285,5 +289,8 @@ func (d *DB) UpsertSession(data *SessionData) error {
 		}
 	}
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("committing transaction: %w", err)
+	}
+	return nil
 }

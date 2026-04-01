@@ -7,7 +7,7 @@ import (
 
 // FormatResult formats a single search result for CLI output.
 func FormatResult(r Result) string {
-	var lines []string
+	lines := make([]string, 0, 8)
 
 	// Title line.
 	sid := r.SessionID
@@ -58,7 +58,7 @@ func FormatResult(r Result) string {
 		if len(snippet) > 120 {
 			snippet = snippet[:120]
 		}
-		lines = append(lines, fmt.Sprintf("    \"%s\"", strings.TrimSpace(snippet)))
+		lines = append(lines, fmt.Sprintf("    %q", strings.TrimSpace(snippet)))
 	}
 
 	// Topics.
@@ -87,32 +87,32 @@ func FormatResult(r Result) string {
 
 // FormatStats formats database statistics for CLI output.
 func FormatStats(s *Stats) string {
-	var lines []string
+	lines := make([]string, 0, 16)
 
-	lines = append(lines, "")
-	lines = append(lines, "Database overview")
-	lines = append(lines, strings.Repeat("=", 40))
-	lines = append(lines, fmt.Sprintf("  Sessions:  %d", s.TotalSessions))
-	lines = append(lines, fmt.Sprintf("  Topics:    %d", s.TotalTopics))
-	lines = append(lines, fmt.Sprintf("  Tools:     %d distinct", s.TotalTools))
-	lines = append(lines, fmt.Sprintf("  Agents:    %d distinct", s.TotalAgents))
+	lines = append(lines, "",
+		"Database overview",
+		strings.Repeat("=", 40),
+		fmt.Sprintf("  Sessions:  %d", s.TotalSessions),
+		fmt.Sprintf("  Topics:    %d", s.TotalTopics),
+		fmt.Sprintf("  Tools:     %d distinct", s.TotalTools),
+		fmt.Sprintf("  Agents:    %d distinct", s.TotalAgents))
 	if s.Earliest != "" {
 		lines = append(lines, fmt.Sprintf("  Range:     %s -> %s", s.Earliest, s.Latest))
 	}
 
 	if len(s.ByProject) > 0 {
-		lines = append(lines, "")
-		lines = append(lines, "  By project")
-		lines = append(lines, "  "+strings.Repeat("-", 36))
+		lines = append(lines, "",
+			"  By project",
+			"  "+strings.Repeat("-", 36))
 		for name, cnt := range s.ByProject {
 			lines = append(lines, fmt.Sprintf("  %-25s  %5d", name, cnt))
 		}
 	}
 
 	if len(s.TopTools) > 0 {
-		lines = append(lines, "")
-		lines = append(lines, "  Top tools")
-		lines = append(lines, "  "+strings.Repeat("-", 36))
+		lines = append(lines, "",
+			"  Top tools",
+			"  "+strings.Repeat("-", 36))
 		for name, cnt := range s.TopTools {
 			lines = append(lines, fmt.Sprintf("  %-25s  %5d", name, cnt))
 		}
@@ -123,8 +123,8 @@ func FormatStats(s *Stats) string {
 }
 
 // FormatTopicTimeline formats a topic timeline for CLI output.
-func FormatTopicTimeline(sessionID string, title string, startTime string, projectName string, topics []TopicDetail) string {
-	var lines []string
+func FormatTopicTimeline(_, title, startTime, projectName string, topics []TopicDetail) string {
+	lines := make([]string, 0, 8+len(topics)*3)
 
 	// Header.
 	if title == "" {
@@ -134,8 +134,8 @@ func FormatTopicTimeline(sessionID string, title string, startTime string, proje
 	if border < 1 {
 		border = 1
 	}
-	lines = append(lines, "")
-	lines = append(lines, fmt.Sprintf("+--- %s %s", title, strings.Repeat("-", border)))
+	lines = append(lines, "",
+		fmt.Sprintf("+--- %s %s", title, strings.Repeat("-", border)))
 	var meta []string
 	if startTime != "" && len(startTime) >= 16 {
 		meta = append(meta, startTime[:16])
@@ -146,11 +146,10 @@ func FormatTopicTimeline(sessionID string, title string, startTime string, proje
 	if len(meta) > 0 {
 		lines = append(lines, fmt.Sprintf("| %s", strings.Join(meta, " | ")))
 	}
-	lines = append(lines, "+"+strings.Repeat("-", 48))
-
-	lines = append(lines, "")
-	lines = append(lines, fmt.Sprintf("Topic timeline (%d entries)", len(topics)))
-	lines = append(lines, "")
+	lines = append(lines, "+"+strings.Repeat("-", 48),
+		"",
+		fmt.Sprintf("Topic timeline (%d entries)", len(topics)),
+		"")
 
 	for _, t := range topics {
 		ts := ""
@@ -161,9 +160,10 @@ func FormatTopicTimeline(sessionID string, title string, startTime string, proje
 		if t.ExchangeNumber != nil {
 			ex = fmt.Sprintf(" (exchange %d)", *t.ExchangeNumber)
 		}
-		lines = append(lines, fmt.Sprintf("  [%-20s] %s%s", t.Source, ts, ex))
-		lines = append(lines, fmt.Sprintf("                       %s", t.TopicText))
-		lines = append(lines, "")
+		lines = append(lines,
+			fmt.Sprintf("  [%-20s] %s%s", t.Source, ts, ex),
+			fmt.Sprintf("                       %s", t.TopicText),
+			"")
 	}
 
 	return strings.Join(lines, "\n")
@@ -171,30 +171,19 @@ func FormatTopicTimeline(sessionID string, title string, startTime string, proje
 
 // FormatToolsUsage formats tool usage results for CLI output.
 func FormatToolsUsage(results []ToolResult, toolName string) string {
-	var lines []string
+	lines := make([]string, 0, 4+len(results))
 
 	if toolName != "" {
-		lines = append(lines, "")
-		lines = append(lines, fmt.Sprintf("Sessions using '%s'", toolName))
-		lines = append(lines, "")
+		lines = append(lines, "",
+			fmt.Sprintf("Sessions using '%s'", toolName),
+			"")
 		for _, r := range results {
-			sid := r.SessionID
-			if len(sid) > 8 {
-				sid = sid[:8]
-			}
-			title := r.TitleDisplay
-			if title == "" {
-				title = r.Title
-			}
-			if title == "" {
-				title = "(unnamed)"
-			}
-			lines = append(lines, fmt.Sprintf("  * %s  %s x%d  %s", sid, r.ToolName, r.UseCount, title))
+			lines = append(lines, formatToolByName(r))
 		}
 	} else {
-		lines = append(lines, "")
-		lines = append(lines, "Top tools across all sessions")
-		lines = append(lines, "")
+		lines = append(lines, "",
+			"Top tools across all sessions",
+			"")
 		for _, r := range results {
 			lines = append(lines, fmt.Sprintf("  %-25s  %6d uses  (%d sessions)", r.ToolName, r.Total, r.SessionCount))
 		}
@@ -202,4 +191,19 @@ func FormatToolsUsage(results []ToolResult, toolName string) string {
 
 	lines = append(lines, "")
 	return strings.Join(lines, "\n")
+}
+
+func formatToolByName(r ToolResult) string {
+	sid := r.SessionID
+	if len(sid) > 8 {
+		sid = sid[:8]
+	}
+	title := r.TitleDisplay
+	if title == "" {
+		title = r.Title
+	}
+	if title == "" {
+		title = "(unnamed)"
+	}
+	return fmt.Sprintf("  * %s  %s x%d  %s", sid, r.ToolName, r.UseCount, title)
 }

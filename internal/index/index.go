@@ -30,8 +30,8 @@ func Incremental(database *db.DB, cfg *config.Config, logger *slog.Logger) Stats
 	return indexAll(database, cfg, logger, true)
 }
 
-// IndexOne indexes a single session by ID, searching across all project directories.
-func IndexOne(database *db.DB, cfg *config.Config, sessionID string) error {
+// One indexes a single session by ID, searching across all project directories.
+func One(database *db.DB, cfg *config.Config, sessionID string) error {
 	path, err := findSessionFile(cfg.ProjectsDir, sessionID)
 	if err != nil {
 		return err
@@ -45,7 +45,10 @@ func IndexOne(database *db.DB, cfg *config.Config, sessionID string) error {
 		return fmt.Errorf("parsing session %s: %w", sessionID, err)
 	}
 
-	return database.UpsertSession(data)
+	if err := database.UpsertSession(data); err != nil {
+		return fmt.Errorf("upserting session %s: %w", sessionID, err)
+	}
+	return nil
 }
 
 func indexAll(database *db.DB, cfg *config.Config, logger *slog.Logger, incrementalOnly bool) Stats {

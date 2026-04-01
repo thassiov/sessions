@@ -20,18 +20,18 @@ type Exchange struct {
 
 // ContextResult holds conversation context for a session.
 type ContextResult struct {
-	SessionID      string
-	Title          string
-	ProjectName    string
-	StartTime      string
-	ExchangeCount  int
+	SessionID       string
+	Title           string
+	ProjectName     string
+	StartTime       string
+	ExchangeCount   int
 	DurationMinutes int
-	Query          string
-	Exchanges      []Exchange
+	Query           string
+	Exchanges       []Exchange
 }
 
 // GetContext retrieves conversation exchanges for a session.
-func GetContext(db *sql.DB, sessionID string, query string, limit int) (*ContextResult, error) {
+func GetContext(db *sql.DB, sessionID, query string, limit int) (*ContextResult, error) {
 	// Resolve partial session ID.
 	var filePath string
 	var result ContextResult
@@ -59,12 +59,12 @@ func GetContext(db *sql.DB, sessionID string, query string, limit int) (*Context
 }
 
 // ExtractExchanges reads a session JSONL and extracts user-assistant pairs.
-func ExtractExchanges(path string, query string, limit int, maxChars int) ([]Exchange, error) {
+func ExtractExchanges(path, query string, limit, maxChars int) ([]Exchange, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("opening session: %w", err)
 	}
-	defer f.Close() //nolint:errcheck
+	defer f.Close() //nolint:errcheck // file closed on function return
 
 	type entry struct {
 		role      string
@@ -260,7 +260,7 @@ func extractAssistantText(raw json.RawMessage) string {
 func summarizeToolCall(b contentBlock) string {
 	var inp map[string]interface{}
 	if len(b.Input) > 0 {
-		json.Unmarshal(b.Input, &inp) //nolint:errcheck
+		json.Unmarshal(b.Input, &inp) //nolint:errcheck // best-effort parse for display
 	}
 
 	getStr := func(key string) string {

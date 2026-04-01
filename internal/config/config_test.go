@@ -151,7 +151,7 @@ func TestExpandHome(t *testing.T) {
 		input    string
 		expected string
 	}{
-		{"~/foo/bar", filepath.Join(home, "foo/bar")},
+		{"~/foo/bar", filepath.Join(home, "foo", "bar")},
 		{"/absolute/path", "/absolute/path"},
 		{"relative/path", "relative/path"},
 	}

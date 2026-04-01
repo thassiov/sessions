@@ -15,6 +15,6 @@ func FileHash(path string) (string, error) {
 		return "", fmt.Errorf("stat %s: %w", path, err)
 	}
 	key := fmt.Sprintf("%d:%d", info.Size(), info.ModTime().UnixNano())
-	sum := md5.Sum([]byte(key)) //nolint:gosec
+	sum := md5.Sum([]byte(key)) //nolint:gosec // not for security, just change detection
 	return fmt.Sprintf("%x", sum), nil
 }

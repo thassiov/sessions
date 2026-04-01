@@ -8,7 +8,7 @@ import (
 
 // FormatContext formats a context result for CLI output.
 func FormatContext(r *ContextResult) string {
-	var lines []string
+	lines := make([]string, 0, 16+len(r.Exchanges)*8)
 
 	title := r.Title
 	if title == "" {
@@ -20,8 +20,8 @@ func FormatContext(r *ContextResult) string {
 	if border < 1 {
 		border = 1
 	}
-	lines = append(lines, "")
-	lines = append(lines, fmt.Sprintf("+--- %s %s", title, strings.Repeat("-", border)))
+	lines = append(lines, "",
+		fmt.Sprintf("+--- %s %s", title, strings.Repeat("-", border)))
 	var meta []string
 	if r.StartTime != "" && len(r.StartTime) >= 10 {
 		meta = append(meta, r.StartTime[:10])
@@ -38,11 +38,12 @@ func FormatContext(r *ContextResult) string {
 	if len(meta) > 0 {
 		lines = append(lines, fmt.Sprintf("| %s", strings.Join(meta, " | ")))
 	}
-	lines = append(lines, fmt.Sprintf("| -> claude --resume %s", r.SessionID))
-	lines = append(lines, "+"+strings.Repeat("-", 48))
+	lines = append(lines,
+		fmt.Sprintf("| -> claude --resume %s", r.SessionID),
+		"+"+strings.Repeat("-", 48))
 
 	if r.Query != "" {
-		lines = append(lines, fmt.Sprintf("\nMatching exchanges for \"%s\":", r.Query))
+		lines = append(lines, fmt.Sprintf("\nMatching exchanges for %q:", r.Query))
 	} else {
 		lines = append(lines, fmt.Sprintf("\nAll exchanges (%d shown):", len(r.Exchanges)))
 	}
@@ -57,8 +58,9 @@ func FormatContext(r *ContextResult) string {
 		if border < 1 {
 			border = 1
 		}
-		lines = append(lines, fmt.Sprintf("  +- %s %s", ts, strings.Repeat("-", border)))
-		lines = append(lines, "  |")
+		lines = append(lines,
+			fmt.Sprintf("  +- %s %s", ts, strings.Repeat("-", border)),
+			"  |")
 
 		// User message.
 		for i, ul := range strings.Split(ex.User, "\n") {
@@ -78,9 +80,9 @@ func FormatContext(r *ContextResult) string {
 				lines = append(lines, fmt.Sprintf("  |         %s", al))
 			}
 		}
-		lines = append(lines, "  |")
-		lines = append(lines, "  +"+strings.Repeat("-", 44))
-		lines = append(lines, "")
+		lines = append(lines, "  |",
+			"  +"+strings.Repeat("-", 44),
+			"")
 	}
 
 	return strings.Join(lines, "\n")
@@ -88,11 +90,11 @@ func FormatContext(r *ContextResult) string {
 
 // FormatAnalytics formats analytics results for CLI output.
 func FormatAnalytics(r *AnalyticsResult) string {
-	var lines []string
+	lines := make([]string, 0, 32)
 
-	lines = append(lines, "")
-	lines = append(lines, fmt.Sprintf("Session analytics -- %s", r.Period))
-	lines = append(lines, strings.Repeat("=", 50))
+	lines = append(lines, "",
+		fmt.Sprintf("Session analytics -- %s", r.Period),
+		strings.Repeat("=", 50))
 
 	// Overview.
 	ov := r.Overview
@@ -102,8 +104,8 @@ func FormatAnalytics(r *AnalyticsResult) string {
 
 	// Time per client.
 	if len(r.TimePerClient) > 0 {
-		lines = append(lines, "\n  Time per client")
-		lines = append(lines, "  "+strings.Repeat("-", 46))
+		lines = append(lines, "\n  Time per client",
+			"  "+strings.Repeat("-", 46))
 		for _, c := range r.TimePerClient {
 			hrs := math.Round(float64(c.TotalMinutes)/60*10) / 10
 			lines = append(lines, fmt.Sprintf("  %-25s  %4d sessions  %6.1fh  avg %.0f exchanges",
@@ -113,8 +115,8 @@ func FormatAnalytics(r *AnalyticsResult) string {
 
 	// By project.
 	if len(r.ByProject) > 0 {
-		lines = append(lines, "\n  By project")
-		lines = append(lines, "  "+strings.Repeat("-", 46))
+		lines = append(lines, "\n  By project",
+			"  "+strings.Repeat("-", 46))
 		for _, p := range r.ByProject {
 			hrs := math.Round(float64(p.TotalMinutes)/60*10) / 10
 			lines = append(lines, fmt.Sprintf("  %-25s  %4d sessions  %6.1fh", p.ProjectName, p.Sessions, hrs))
@@ -123,8 +125,8 @@ func FormatAnalytics(r *AnalyticsResult) string {
 
 	// Daily trend.
 	if len(r.DailyTrend) > 0 {
-		lines = append(lines, "\n  Daily trend (last 14 days)")
-		lines = append(lines, "  "+strings.Repeat("-", 46))
+		lines = append(lines, "\n  Daily trend (last 14 days)",
+			"  "+strings.Repeat("-", 46))
 		for _, d := range r.DailyTrend {
 			hrs := math.Round(float64(d.Minutes)/60*10) / 10
 			barLen := d.Minutes / 15
@@ -138,8 +140,8 @@ func FormatAnalytics(r *AnalyticsResult) string {
 
 	// Top tools.
 	if len(r.TopTools) > 0 {
-		lines = append(lines, "\n  Top tools")
-		lines = append(lines, "  "+strings.Repeat("-", 46))
+		lines = append(lines, "\n  Top tools",
+			"  "+strings.Repeat("-", 46))
 		for _, t := range r.TopTools {
 			lines = append(lines, fmt.Sprintf("  %-25s  %6d uses  (%d sessions)", t.ToolName, t.Total, t.SessionCount))
 		}
@@ -147,8 +149,8 @@ func FormatAnalytics(r *AnalyticsResult) string {
 
 	// Tool trends.
 	if len(r.ToolTrends) > 0 {
-		lines = append(lines, "\n  Tool trends (this week vs last)")
-		lines = append(lines, "  "+strings.Repeat("-", 46))
+		lines = append(lines, "\n  Tool trends (this week vs last)",
+			"  "+strings.Repeat("-", 46))
 		for _, t := range r.ToolTrends {
 			var change string
 			if t.LastWeek > 0 {
@@ -169,8 +171,8 @@ func FormatAnalytics(r *AnalyticsResult) string {
 
 	// Top topics.
 	if len(r.TopTopics) > 0 {
-		lines = append(lines, "\n  Most discussed topics")
-		lines = append(lines, "  "+strings.Repeat("-", 46))
+		lines = append(lines, "\n  Most discussed topics",
+			"  "+strings.Repeat("-", 46))
 		limit := 10
 		if len(r.TopTopics) < limit {
 			limit = len(r.TopTopics)

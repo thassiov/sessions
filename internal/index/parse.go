@@ -46,12 +46,12 @@ var skipTitlePrefixes = []string{
 }
 
 // ParseSession reads a session JSONL file and extracts all indexable data.
-func ParseSession(path string, projectName string) (*db.SessionData, error) {
+func ParseSession(path, projectName string) (*db.SessionData, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("opening session: %w", err)
 	}
-	defer f.Close() //nolint:errcheck
+	defer f.Close() //nolint:errcheck // file closed on function return
 
 	info, err := f.Stat()
 	if err != nil {

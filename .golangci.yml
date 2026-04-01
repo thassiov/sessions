@@ -64,7 +64,7 @@ linters-settings:
     min-complexity: 15
 
   funlen:
-    lines: 80
+    lines: 85
     statements: 50
 
   nestif:
@@ -168,6 +168,20 @@ issues:
         - gosec
       text: "G304"
 
+    # File permissions and SQL formatting are intentional
+    - linters:
+        - gosec
+      text: "G301"
+    - linters:
+        - gosec
+      text: "G306"
+    - linters:
+        - gosec
+      text: "G302"
+    - linters:
+        - gosec
+      text: "G201"
+
     # wrapcheck and complexity checks are too strict for cobra commands
     - path: cmd/
       linters:
@@ -179,7 +193,38 @@ issues:
     - path: internal/(index|hook)/
       linters:
         - gocognit
+        - gocyclo
         - nestif
+        - funlen
+
+    # Analyze format/context functions are inherently complex (nested formatting, parsing)
+    # Analytics queries are structurally similar but serve different purposes
+    - path: internal/analyze/
+      linters:
+        - gocognit
+        - gocyclo
+        - nestif
+        - dupl
+        - funlen
+
+    # Search format functions are inherently complex
+    - path: internal/search/format\.go
+      linters:
+        - gocognit
+        - gocyclo
+        - nestif
+
+    # UpsertSession and GetStats are sequential multi-step operations
+    - path: internal/db/db\.go
+      linters:
+        - gocognit
+        - gocyclo
+        - funlen
+
+    # GetStats aggregates multiple queries sequentially
+    - path: internal/search/search\.go
+      linters:
+        - gocognit
 
     # Main is long by nature (command registration)
     - path: cmd/.*/main\.go

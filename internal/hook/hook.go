@@ -3,7 +3,6 @@ package hook
 
 import (
 	"bufio"
-	"database/sql"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -56,12 +55,12 @@ func ReadStdin(r io.Reader) StdinData {
 	if err != nil {
 		return data
 	}
-	json.Unmarshal(bytes, &data) //nolint:errcheck
+	json.Unmarshal(bytes, &data) //nolint:errcheck // best-effort parse, zero-value is fine
 	return data
 }
 
 // Handle dispatches hook events.
-func Handle(event string, sessionID string, database *db.DB, cfg *config.Config, logger *slog.Logger) {
+func Handle(event, sessionID string, database *db.DB, cfg *config.Config, logger *slog.Logger) {
 	switch event {
 	case "UserPromptSubmit":
 		handleUserPromptSubmit(sessionID, database, cfg, logger)
@@ -132,14 +131,14 @@ func handleSessionEnd(sessionID string, database *db.DB, cfg *config.Config, log
 	}
 
 	// Trigger full session reindex.
-	if err := index.IndexOne(database, cfg, sessionID); err != nil {
+	if err := index.One(database, cfg, sessionID); err != nil {
 		logger.Warn("session reindex failed", "session", sessionID, "error", err)
 	} else {
 		logger.Info("session reindexed", "session", sessionID)
 	}
 
 	// Clean up hook state.
-	database.SQL().Exec("DELETE FROM hook_state WHERE session_id=?", sessionID) //nolint:errcheck
+	database.SQL().Exec("DELETE FROM hook_state WHERE session_id=?", sessionID) //nolint:errcheck // best-effort cleanup
 }
 
 // FindSessionFile locates a session JSONL file across project directories.
@@ -166,7 +165,7 @@ func CountUserMessages(path string) int {
 	if err != nil {
 		return 0
 	}
-	defer f.Close() //nolint:errcheck
+	defer f.Close() //nolint:errcheck // file closed on function return
 
 	count := 0
 	scanner := bufio.NewScanner(f)
@@ -187,7 +186,7 @@ func ExtractRecentUserMessages(path string, count int) []string {
 	if err != nil {
 		return nil
 	}
-	defer f.Close() //nolint:errcheck
+	defer f.Close() //nolint:errcheck // file closed on function return
 
 	// Read last 200KB for efficiency on large files.
 	info, err := f.Stat()
@@ -321,7 +320,7 @@ func ExtractTopic(messages []string) string {
 	}
 
 	// Capitalize first letter.
-	if len(topic) > 0 {
+	if topic != "" {
 		topic = strings.ToUpper(topic[:1]) + topic[1:]
 	}
 
@@ -375,6 +374,3 @@ func WriteTopic(database *db.DB, sessionID, topic, source string, exchangeNumber
 		logger.Info("topic captured", "session", sid, "source", source, "topic", topic)
 	}
 }
-
-// Ensure sql import is used (referenced in handleSessionEnd for DELETE).
-var _ = sql.ErrNoRows

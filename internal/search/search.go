@@ -10,18 +10,18 @@ import (
 
 // Result holds a single search result.
 type Result struct {
-	SessionID      string
-	ProjectName    string
-	Title          string
-	TitleDisplay   string
-	Client         string
-	Tags           string
-	ExchangeCount  int
-	StartTime      string
+	SessionID       string
+	ProjectName     string
+	Title           string
+	TitleDisplay    string
+	Client          string
+	Tags            string
+	ExchangeCount   int
+	StartTime       string
 	DurationMinutes int
-	HasCompaction  int
-	Snippet        string
-	Topics         []Topic
+	HasCompaction   int
+	Snippet         string
+	Topics          []Topic
 }
 
 // Topic is a compact topic entry for display.
@@ -52,16 +52,16 @@ type ToolResult struct {
 
 // Stats holds database statistics.
 type Stats struct {
-	TotalSessions     int
-	TotalTopics       int
-	TotalTools        int
-	TotalAgents       int
+	TotalSessions      int
+	TotalTopics        int
+	TotalTools         int
+	TotalAgents        int
 	SessionsWithTopics int
-	Earliest          string
-	Latest            string
-	ByProject         map[string]int
-	ByClient          map[string]int
-	TopTools          map[string]int
+	Earliest           string
+	Latest             string
+	ByProject          map[string]int
+	ByClient           map[string]int
+	TopTools           map[string]int
 }
 
 // FilterOpts holds options for the Find method.
@@ -100,7 +100,7 @@ func Search(db *sql.DB, query string, limit int) ([]Result, error) {
 	if err != nil {
 		return nil, fmt.Errorf("searching: %w", err)
 	}
-	defer rows.Close() //nolint:errcheck
+	defer rows.Close() //nolint:errcheck // rows closed on function return
 
 	return scanResults(db, rows)
 }
@@ -182,7 +182,7 @@ func Find(db *sql.DB, opts FilterOpts) ([]Result, error) {
 	if err != nil {
 		return nil, fmt.Errorf("finding sessions: %w", err)
 	}
-	defer rows.Close() //nolint:errcheck
+	defer rows.Close() //nolint:errcheck // rows closed on function return
 
 	return scanFindResults(db, rows)
 }
@@ -209,7 +209,7 @@ func Topics(db *sql.DB, sessionID string) ([]TopicDetail, error) {
 	if err != nil {
 		return nil, fmt.Errorf("querying topics: %w", err)
 	}
-	defer rows.Close() //nolint:errcheck
+	defer rows.Close() //nolint:errcheck // rows closed on function return
 
 	var topics []TopicDetail
 	for rows.Next() {
@@ -219,7 +219,10 @@ func Topics(db *sql.DB, sessionID string) ([]TopicDetail, error) {
 		}
 		topics = append(topics, t)
 	}
-	return topics, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating topics: %w", err)
+	}
+	return topics, nil
 }
 
 // ToolsUsage returns tool usage data, optionally filtered by tool name.
@@ -242,14 +245,14 @@ func GetStats(db *sql.DB) (*Stats, error) {
 		TopTools:  make(map[string]int),
 	}
 
-	db.QueryRow("SELECT COUNT(*) FROM sessions").Scan(&s.TotalSessions)                           //nolint:errcheck
-	db.QueryRow("SELECT COUNT(*) FROM session_topics").Scan(&s.TotalTopics)                        //nolint:errcheck
-	db.QueryRow("SELECT COUNT(DISTINCT tool_name) FROM session_tools").Scan(&s.TotalTools)         //nolint:errcheck
-	db.QueryRow("SELECT COUNT(DISTINCT agent_name) FROM session_agents").Scan(&s.TotalAgents)      //nolint:errcheck
-	db.QueryRow("SELECT COUNT(DISTINCT session_id) FROM session_topics").Scan(&s.SessionsWithTopics) //nolint:errcheck
+	db.QueryRow("SELECT COUNT(*) FROM sessions").Scan(&s.TotalSessions)                              //nolint:errcheck // best-effort stats
+	db.QueryRow("SELECT COUNT(*) FROM session_topics").Scan(&s.TotalTopics)                          //nolint:errcheck // best-effort stats
+	db.QueryRow("SELECT COUNT(DISTINCT tool_name) FROM session_tools").Scan(&s.TotalTools)           //nolint:errcheck // best-effort stats
+	db.QueryRow("SELECT COUNT(DISTINCT agent_name) FROM session_agents").Scan(&s.TotalAgents)        //nolint:errcheck // best-effort stats
+	db.QueryRow("SELECT COUNT(DISTINCT session_id) FROM session_topics").Scan(&s.SessionsWithTopics) //nolint:errcheck // best-effort stats
 
 	var earliest, latest sql.NullString
-	db.QueryRow("SELECT MIN(start_time), MAX(start_time) FROM sessions WHERE start_time IS NOT NULL").Scan(&earliest, &latest) //nolint:errcheck
+	db.QueryRow("SELECT MIN(start_time), MAX(start_time) FROM sessions WHERE start_time IS NOT NULL").Scan(&earliest, &latest) //nolint:errcheck // best-effort stats
 	if earliest.Valid && len(earliest.String) >= 10 {
 		s.Earliest = earliest.String[:10]
 	}
@@ -258,43 +261,13 @@ func GetStats(db *sql.DB) (*Stats, error) {
 	}
 
 	// By project.
-	rows, _ := db.Query("SELECT project_name, COUNT(*) as cnt FROM sessions GROUP BY project_name ORDER BY cnt DESC")
-	if rows != nil {
-		defer rows.Close() //nolint:errcheck
-		for rows.Next() {
-			var name string
-			var cnt int
-			if rows.Scan(&name, &cnt) == nil {
-				s.ByProject[name] = cnt
-			}
-		}
-	}
+	s.ByProject = scanMap(db, "SELECT project_name, COUNT(*) as cnt FROM sessions GROUP BY project_name ORDER BY cnt DESC")
 
 	// By client.
-	rows2, _ := db.Query("SELECT client, COUNT(*) as cnt FROM sessions WHERE client IS NOT NULL AND client != '' GROUP BY client ORDER BY cnt DESC")
-	if rows2 != nil {
-		defer rows2.Close() //nolint:errcheck
-		for rows2.Next() {
-			var name string
-			var cnt int
-			if rows2.Scan(&name, &cnt) == nil {
-				s.ByClient[name] = cnt
-			}
-		}
-	}
+	s.ByClient = scanMap(db, "SELECT client, COUNT(*) as cnt FROM sessions WHERE client IS NOT NULL AND client != '' GROUP BY client ORDER BY cnt DESC")
 
 	// Top tools.
-	rows3, _ := db.Query("SELECT tool_name, SUM(use_count) as total FROM session_tools GROUP BY tool_name ORDER BY total DESC LIMIT 10")
-	if rows3 != nil {
-		defer rows3.Close() //nolint:errcheck
-		for rows3.Next() {
-			var name string
-			var cnt int
-			if rows3.Scan(&name, &cnt) == nil {
-				s.TopTools[name] = cnt
-			}
-		}
-	}
+	s.TopTools = scanMap(db, "SELECT tool_name, SUM(use_count) as total FROM session_tools GROUP BY tool_name ORDER BY total DESC LIMIT 10")
 
 	return s, nil
 }
@@ -319,7 +292,7 @@ func EscapeFTSQuery(query string) string {
 		if query[i] == '"' {
 			end := strings.IndexByte(query[i+1:], '"')
 			if end == -1 {
-				tokens = append(tokens, fmt.Sprintf(`"%s"`, query[i+1:]))
+				tokens = append(tokens, `"`+query[i+1:]+`"`)
 				break
 			}
 			tokens = append(tokens, query[i:i+1+end+1])
@@ -332,7 +305,7 @@ func EscapeFTSQuery(query string) string {
 		for i < len(query) && query[i] != ' ' && query[i] != '\t' && query[i] != '"' {
 			i++
 		}
-		tokens = append(tokens, fmt.Sprintf(`"%s"`, query[start:i]))
+		tokens = append(tokens, `"`+query[start:i]+`"`)
 	}
 
 	return strings.Join(tokens, " ")
@@ -373,7 +346,10 @@ func scanResults(db *sql.DB, rows *sql.Rows) ([]Result, error) {
 		r.Topics = getTopics(db, r.SessionID)
 		results = append(results, r)
 	}
-	return results, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating results: %w", err)
+	}
+	return results, nil
 }
 
 func scanFindResults(db *sql.DB, rows *sql.Rows) ([]Result, error) {
@@ -396,7 +372,10 @@ func scanFindResults(db *sql.DB, rows *sql.Rows) ([]Result, error) {
 		r.Topics = getTopics(db, r.SessionID)
 		results = append(results, r)
 	}
-	return results, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating results: %w", err)
+	}
+	return results, nil
 }
 
 func getTopics(db *sql.DB, sessionID string) []Topic {
@@ -407,7 +386,7 @@ func getTopics(db *sql.DB, sessionID string) []Topic {
 	if err != nil {
 		return nil
 	}
-	defer rows.Close() //nolint:errcheck
+	defer rows.Close() //nolint:errcheck // rows closed on function return
 
 	var topics []Topic
 	for rows.Next() {
@@ -416,6 +395,7 @@ func getTopics(db *sql.DB, sessionID string) []Topic {
 			topics = append(topics, t)
 		}
 	}
+	_ = rows.Err() // best-effort topic fetch
 	return topics
 }
 
@@ -432,7 +412,7 @@ func toolsByName(db *sql.DB, toolName string, limit int) ([]ToolResult, error) {
 	if err != nil {
 		return nil, fmt.Errorf("querying tool usage: %w", err)
 	}
-	defer rows.Close() //nolint:errcheck
+	defer rows.Close() //nolint:errcheck // rows closed on function return
 
 	var results []ToolResult
 	for rows.Next() {
@@ -445,7 +425,10 @@ func toolsByName(db *sql.DB, toolName string, limit int) ([]ToolResult, error) {
 		r.TitleDisplay = titleDisplay.String
 		results = append(results, r)
 	}
-	return results, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating tool results: %w", err)
+	}
+	return results, nil
 }
 
 func topTools(db *sql.DB, limit int) ([]ToolResult, error) {
@@ -460,7 +443,7 @@ func topTools(db *sql.DB, limit int) ([]ToolResult, error) {
 	if err != nil {
 		return nil, fmt.Errorf("querying top tools: %w", err)
 	}
-	defer rows.Close() //nolint:errcheck
+	defer rows.Close() //nolint:errcheck // rows closed on function return
 
 	var results []ToolResult
 	for rows.Next() {
@@ -470,5 +453,28 @@ func topTools(db *sql.DB, limit int) ([]ToolResult, error) {
 		}
 		results = append(results, r)
 	}
-	return results, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating top tools: %w", err)
+	}
+	return results, nil
+}
+
+// scanMap runs a query that returns (string, int) pairs and returns a map.
+func scanMap(db *sql.DB, query string) map[string]int {
+	result := make(map[string]int)
+	rows, err := db.Query(query)
+	if err != nil {
+		return result
+	}
+	defer rows.Close() //nolint:errcheck // rows closed on function return
+
+	for rows.Next() {
+		var name string
+		var cnt int
+		if rows.Scan(&name, &cnt) == nil {
+			result[name] = cnt
+		}
+	}
+	_ = rows.Err() // best-effort stats query
+	return result
 }
