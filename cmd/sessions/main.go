@@ -107,7 +107,7 @@ func newSearchCmd(dbPath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer database.Close()
+			defer database.Close() //nolint:errcheck
 
 			if err := ensureIndexed(database, dbPath); err != nil {
 				return err
@@ -145,7 +145,7 @@ func newFindCmd(dbPath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer database.Close()
+			defer database.Close() //nolint:errcheck
 
 			if err := ensureIndexed(database, dbPath); err != nil {
 				return err
@@ -205,7 +205,7 @@ func newRecentCmd(dbPath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer database.Close()
+			defer database.Close() //nolint:errcheck
 
 			if err := ensureIndexed(database, dbPath); err != nil {
 				return err
@@ -240,7 +240,7 @@ func newToolsCmd(dbPath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer database.Close()
+			defer database.Close() //nolint:errcheck
 
 			results, err := search.ToolsUsage(database.SQL(), toolName, 20)
 			if err != nil {
@@ -262,7 +262,7 @@ func newTopicsCmd(dbPath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer database.Close()
+			defer database.Close() //nolint:errcheck
 
 			sessionID := args[0]
 			topics, err := search.Topics(database.SQL(), sessionID)
@@ -300,7 +300,7 @@ func newStatsCmd(dbPath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer database.Close()
+			defer database.Close() //nolint:errcheck
 
 			stats, err := search.GetStats(database.SQL())
 			if err != nil {
@@ -329,7 +329,7 @@ func newIndexCmd(dbPath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer database.Close()
+			defer database.Close() //nolint:errcheck
 
 			logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 				Level: slog.LevelInfo,
@@ -387,7 +387,7 @@ func newHookCmd(dbPath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer database.Close()
+			defer database.Close() //nolint:errcheck
 
 			logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 				Level: slog.LevelInfo,
@@ -414,7 +414,7 @@ func newWatchCmd(dbPath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer database.Close()
+			defer database.Close() //nolint:errcheck
 
 			logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 				Level: slog.LevelInfo,
@@ -445,7 +445,7 @@ func newContextCmd(dbPath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer database.Close()
+			defer database.Close() //nolint:errcheck
 
 			sessionID := args[0]
 			query := ""
@@ -476,7 +476,7 @@ func newAnalyticsCmd(dbPath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer database.Close()
+			defer database.Close() //nolint:errcheck
 
 			result, err := analyze.Analytics(database.SQL(), opts)
 			if err != nil {
