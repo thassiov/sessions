@@ -164,7 +164,7 @@ func queryTimePerClient(db *sql.DB, where string, params []interface{}) []Client
 	if err != nil {
 		return nil
 	}
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 
 	var result []ClientTime
 	for rows.Next() {
@@ -187,7 +187,7 @@ func queryDailyTrend(db *sql.DB) []DailyEntry {
 	if err != nil {
 		return nil
 	}
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 
 	var result []DailyEntry
 	for rows.Next() {
@@ -210,7 +210,7 @@ func queryTopTools(db *sql.DB, where string, params []interface{}) []ToolEntry {
 	if err != nil {
 		return nil
 	}
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 
 	var result []ToolEntry
 	for rows.Next() {
@@ -242,7 +242,7 @@ func queryToolTrends(db *sql.DB) []ToolTrend {
 	if err != nil {
 		return nil
 	}
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 
 	var result []ToolTrend
 	for rows.Next() {
@@ -265,7 +265,7 @@ func queryTopTopics(db *sql.DB, where string, params []interface{}) []TopicEntry
 	if err != nil {
 		return nil
 	}
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 
 	var result []TopicEntry
 	for rows.Next() {
@@ -286,7 +286,7 @@ func queryByProject(db *sql.DB, where string, params []interface{}) []ProjectEnt
 	if err != nil {
 		return nil
 	}
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 
 	var result []ProjectEntry
 	for rows.Next() {

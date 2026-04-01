@@ -100,7 +100,7 @@ func Search(db *sql.DB, query string, limit int) ([]Result, error) {
 	if err != nil {
 		return nil, fmt.Errorf("searching: %w", err)
 	}
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 
 	return scanResults(db, rows)
 }
@@ -182,7 +182,7 @@ func Find(db *sql.DB, opts FilterOpts) ([]Result, error) {
 	if err != nil {
 		return nil, fmt.Errorf("finding sessions: %w", err)
 	}
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 
 	return scanFindResults(db, rows)
 }
@@ -209,7 +209,7 @@ func Topics(db *sql.DB, sessionID string) ([]TopicDetail, error) {
 	if err != nil {
 		return nil, fmt.Errorf("querying topics: %w", err)
 	}
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 
 	var topics []TopicDetail
 	for rows.Next() {
@@ -260,7 +260,7 @@ func GetStats(db *sql.DB) (*Stats, error) {
 	// By project.
 	rows, _ := db.Query("SELECT project_name, COUNT(*) as cnt FROM sessions GROUP BY project_name ORDER BY cnt DESC")
 	if rows != nil {
-		defer rows.Close()
+		defer rows.Close() //nolint:errcheck
 		for rows.Next() {
 			var name string
 			var cnt int
@@ -273,7 +273,7 @@ func GetStats(db *sql.DB) (*Stats, error) {
 	// By client.
 	rows2, _ := db.Query("SELECT client, COUNT(*) as cnt FROM sessions WHERE client IS NOT NULL AND client != '' GROUP BY client ORDER BY cnt DESC")
 	if rows2 != nil {
-		defer rows2.Close()
+		defer rows2.Close() //nolint:errcheck
 		for rows2.Next() {
 			var name string
 			var cnt int
@@ -286,7 +286,7 @@ func GetStats(db *sql.DB) (*Stats, error) {
 	// Top tools.
 	rows3, _ := db.Query("SELECT tool_name, SUM(use_count) as total FROM session_tools GROUP BY tool_name ORDER BY total DESC LIMIT 10")
 	if rows3 != nil {
-		defer rows3.Close()
+		defer rows3.Close() //nolint:errcheck
 		for rows3.Next() {
 			var name string
 			var cnt int
@@ -407,7 +407,7 @@ func getTopics(db *sql.DB, sessionID string) []Topic {
 	if err != nil {
 		return nil
 	}
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 
 	var topics []Topic
 	for rows.Next() {
@@ -432,7 +432,7 @@ func toolsByName(db *sql.DB, toolName string, limit int) ([]ToolResult, error) {
 	if err != nil {
 		return nil, fmt.Errorf("querying tool usage: %w", err)
 	}
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 
 	var results []ToolResult
 	for rows.Next() {
@@ -460,7 +460,7 @@ func topTools(db *sql.DB, limit int) ([]ToolResult, error) {
 	if err != nil {
 		return nil, fmt.Errorf("querying top tools: %w", err)
 	}
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 
 	var results []ToolResult
 	for rows.Next() {
