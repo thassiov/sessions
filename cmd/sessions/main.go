@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/thassiov/sessions/internal/analyze"
 	"github.com/thassiov/sessions/internal/config"
 	"github.com/thassiov/sessions/internal/db"
 	"github.com/thassiov/sessions/internal/index"
@@ -72,6 +73,8 @@ func run() error {
 	rootCmd.AddCommand(newToolsCmd(&dbPath))
 	rootCmd.AddCommand(newTopicsCmd(&dbPath))
 	rootCmd.AddCommand(newStatsCmd(&dbPath))
+	rootCmd.AddCommand(newContextCmd(&dbPath))
+	rootCmd.AddCommand(newAnalyticsCmd(&dbPath))
 	rootCmd.AddCommand(newIndexCmd(&dbPath))
 
 	return rootCmd.Execute()
@@ -350,6 +353,66 @@ func newIndexCmd(dbPath *string) *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&backfill, "backfill", false, "index all sessions (not just new/modified)")
 	cmd.Flags().StringVar(&sessionID, "session", "", "index a single session by ID")
+	return cmd
+}
+
+func newContextCmd(dbPath *string) *cobra.Command {
+	var limit int
+
+	cmd := &cobra.Command{
+		Use:   "context [session_id] [query]",
+		Short: "Show conversation exchanges from a session",
+		Args:  cobra.RangeArgs(1, 2),
+		RunE: func(_ *cobra.Command, args []string) error {
+			database, err := openDB(dbPath)
+			if err != nil {
+				return err
+			}
+			defer database.Close()
+
+			sessionID := args[0]
+			query := ""
+			if len(args) > 1 {
+				query = args[1]
+			}
+
+			result, err := analyze.GetContext(database.SQL(), sessionID, query, limit)
+			if err != nil {
+				return err
+			}
+			fmt.Print(analyze.FormatContext(result))
+			return nil
+		},
+	}
+	cmd.Flags().IntVarP(&limit, "limit", "n", 10, "max exchanges")
+	return cmd
+}
+
+func newAnalyticsCmd(dbPath *string) *cobra.Command {
+	var opts analyze.AnalyticsOpts
+
+	cmd := &cobra.Command{
+		Use:   "analytics",
+		Short: "Show session analytics and trends",
+		RunE: func(_ *cobra.Command, _ []string) error {
+			database, err := openDB(dbPath)
+			if err != nil {
+				return err
+			}
+			defer database.Close()
+
+			result, err := analyze.Analytics(database.SQL(), opts)
+			if err != nil {
+				return err
+			}
+			fmt.Print(analyze.FormatAnalytics(result))
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&opts.Client, "client", "", "filter by client")
+	cmd.Flags().StringVar(&opts.Project, "project", "", "filter by project")
+	cmd.Flags().BoolVar(&opts.Week, "week", false, "this week only")
+	cmd.Flags().BoolVar(&opts.Month, "month", false, "this month only")
 	return cmd
 }
 
