@@ -75,60 +75,60 @@ func Handle(event string, sessionID string, database *db.DB, cfg *config.Config,
 }
 
 func handleUserPromptSubmit(sessionID string, database *db.DB, cfg *config.Config, logger *slog.Logger) {
-	sessionPath := findSessionFile(cfg.ProjectsDir, sessionID)
+	sessionPath := FindSessionFile(cfg.ProjectsDir, sessionID)
 	if sessionPath == "" {
 		return
 	}
 
-	exchangeCount := countUserMessages(sessionPath)
+	exchangeCount := CountUserMessages(sessionPath)
 	if exchangeCount < TopicInterval {
 		return
 	}
 
 	// Check hook_state in DB.
-	lastCapture := getLastCapture(database, sessionID)
+	lastCapture := GetLastCapture(database, sessionID)
 	if exchangeCount-lastCapture < TopicInterval {
 		return
 	}
 
-	messages := extractRecentUserMessages(sessionPath, 3)
+	messages := ExtractRecentUserMessages(sessionPath, 3)
 	topic := ExtractTopic(messages)
 	if topic == "" {
 		return
 	}
 
-	writeTopic(database, sessionID, topic, "hook_periodic", exchangeCount, logger)
-	updateLastCapture(database, sessionID, exchangeCount, logger)
+	WriteTopic(database, sessionID, topic, "hook_periodic", exchangeCount, logger)
+	UpdateLastCapture(database, sessionID, exchangeCount, logger)
 }
 
 func handlePreCompact(sessionID string, database *db.DB, cfg *config.Config, logger *slog.Logger) {
-	sessionPath := findSessionFile(cfg.ProjectsDir, sessionID)
+	sessionPath := FindSessionFile(cfg.ProjectsDir, sessionID)
 	if sessionPath == "" {
 		return
 	}
 
-	messages := extractRecentUserMessages(sessionPath, 5)
+	messages := ExtractRecentUserMessages(sessionPath, 5)
 	topic := ExtractTopic(messages)
 	if topic == "" {
 		return
 	}
 
-	exchangeCount := countUserMessages(sessionPath)
-	writeTopic(database, sessionID, topic, "hook_precompact", exchangeCount, logger)
+	exchangeCount := CountUserMessages(sessionPath)
+	WriteTopic(database, sessionID, topic, "hook_precompact", exchangeCount, logger)
 }
 
 func handleSessionEnd(sessionID string, database *db.DB, cfg *config.Config, logger *slog.Logger) {
-	sessionPath := findSessionFile(cfg.ProjectsDir, sessionID)
+	sessionPath := FindSessionFile(cfg.ProjectsDir, sessionID)
 	if sessionPath == "" {
 		return
 	}
 
 	// Capture final topic.
-	messages := extractRecentUserMessages(sessionPath, 5)
+	messages := ExtractRecentUserMessages(sessionPath, 5)
 	topic := ExtractTopic(messages)
 	if topic != "" {
-		exchangeCount := countUserMessages(sessionPath)
-		writeTopic(database, sessionID, topic, "hook_session_end", exchangeCount, logger)
+		exchangeCount := CountUserMessages(sessionPath)
+		WriteTopic(database, sessionID, topic, "hook_session_end", exchangeCount, logger)
 	}
 
 	// Trigger full session reindex.
@@ -142,7 +142,8 @@ func handleSessionEnd(sessionID string, database *db.DB, cfg *config.Config, log
 	database.SQL().Exec("DELETE FROM hook_state WHERE session_id=?", sessionID) //nolint:errcheck
 }
 
-func findSessionFile(projectsDir, sessionID string) string {
+// FindSessionFile locates a session JSONL file across project directories.
+func FindSessionFile(projectsDir, sessionID string) string {
 	entries, err := os.ReadDir(projectsDir)
 	if err != nil {
 		return ""
@@ -159,7 +160,8 @@ func findSessionFile(projectsDir, sessionID string) string {
 	return ""
 }
 
-func countUserMessages(path string) int {
+// CountUserMessages counts user messages in a session JSONL file.
+func CountUserMessages(path string) int {
 	f, err := os.Open(path)
 	if err != nil {
 		return 0
@@ -179,7 +181,8 @@ func countUserMessages(path string) int {
 	return count
 }
 
-func extractRecentUserMessages(path string, count int) []string {
+// ExtractRecentUserMessages reads the last N substantive user messages from a session JSONL.
+func ExtractRecentUserMessages(path string, count int) []string {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil
@@ -325,7 +328,8 @@ func ExtractTopic(messages []string) string {
 	return topic
 }
 
-func getLastCapture(database *db.DB, sessionID string) int {
+// GetLastCapture returns the exchange count at the last topic capture for a session.
+func GetLastCapture(database *db.DB, sessionID string) int {
 	var lastCapture int
 	err := database.SQL().QueryRow(
 		"SELECT last_capture_exchange FROM hook_state WHERE session_id=?", sessionID,
@@ -336,7 +340,8 @@ func getLastCapture(database *db.DB, sessionID string) int {
 	return lastCapture
 }
 
-func updateLastCapture(database *db.DB, sessionID string, exchangeCount int, logger *slog.Logger) {
+// UpdateLastCapture updates the hook state for a session's last capture point.
+func UpdateLastCapture(database *db.DB, sessionID string, exchangeCount int, logger *slog.Logger) {
 	now := time.Now().Format(time.RFC3339)
 	_, err := database.SQL().Exec(`
 		INSERT INTO hook_state (session_id, last_capture_exchange, updated_at)
@@ -350,7 +355,8 @@ func updateLastCapture(database *db.DB, sessionID string, exchangeCount int, log
 	}
 }
 
-func writeTopic(database *db.DB, sessionID, topic, source string, exchangeNumber int, logger *slog.Logger) {
+// WriteTopic writes a topic entry to the session_topics table.
+func WriteTopic(database *db.DB, sessionID, topic, source string, exchangeNumber int, logger *slog.Logger) {
 	now := time.Now().Format(time.RFC3339)
 	_, err := database.SQL().Exec(
 		"INSERT INTO session_topics (session_id, topic, captured_at, exchange_number, source) VALUES (?, ?, ?, ?, ?)",

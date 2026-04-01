@@ -114,9 +114,9 @@ func TestCountUserMessages(t *testing.T) {
 	}
 	os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o644)
 
-	count := countUserMessages(path)
+	count := CountUserMessages(path)
 	if count != 3 {
-		t.Errorf("countUserMessages() = %d, want 3", count)
+		t.Errorf("CountUserMessages() = %d, want 3", count)
 	}
 }
 
@@ -135,7 +135,7 @@ func TestExtractRecentUserMessages(t *testing.T) {
 	}
 	os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o644)
 
-	messages := extractRecentUserMessages(path, 2)
+	messages := ExtractRecentUserMessages(path, 2)
 	if len(messages) != 2 {
 		t.Fatalf("got %d messages, want 2", len(messages))
 	}
@@ -162,7 +162,7 @@ func TestExtractRecentSkipsNoise(t *testing.T) {
 	}
 	os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o644)
 
-	messages := extractRecentUserMessages(path, 3)
+	messages := ExtractRecentUserMessages(path, 3)
 	if len(messages) != 1 {
 		t.Fatalf("got %d messages, want 1 (noise should be filtered)", len(messages))
 	}
@@ -182,21 +182,21 @@ func TestHookStateDB(t *testing.T) {
 	defer database.Close()
 
 	// Initially no state.
-	last := getLastCapture(database, "test-session")
+	last := GetLastCapture(database, "test-session")
 	if last != 0 {
 		t.Errorf("initial lastCapture = %d, want 0", last)
 	}
 
 	// Update state.
-	updateLastCapture(database, "test-session", 20, nil)
-	last = getLastCapture(database, "test-session")
+	UpdateLastCapture(database, "test-session", 20, nil)
+	last = GetLastCapture(database, "test-session")
 	if last != 20 {
 		t.Errorf("after update lastCapture = %d, want 20", last)
 	}
 
 	// Upsert.
-	updateLastCapture(database, "test-session", 30, nil)
-	last = getLastCapture(database, "test-session")
+	UpdateLastCapture(database, "test-session", 30, nil)
+	last = GetLastCapture(database, "test-session")
 	if last != 30 {
 		t.Errorf("after upsert lastCapture = %d, want 30", last)
 	}
@@ -222,7 +222,7 @@ func TestWriteTopic(t *testing.T) {
 		Agents:    map[string]int{},
 	})
 
-	writeTopic(database, "test-session-001", "Fix auth bug", "hook_periodic", 15, nil)
+	WriteTopic(database, "test-session-001", "Fix auth bug", "hook_periodic", 15, nil)
 
 	var count int
 	database.SQL().QueryRow("SELECT COUNT(*) FROM session_topics WHERE session_id=?", "test-session-001").Scan(&count)

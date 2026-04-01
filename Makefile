@@ -1,5 +1,5 @@
 .PHONY: all build test lint coverage security check clean install-local install-local-force dev fmt tidy
-.PHONY: test-unit ci help tools watch
+.PHONY: test-unit ci help tools watch install-service uninstall-service
 
 # Build configuration
 BINARY_DIR := bin
@@ -119,6 +119,44 @@ dev: build
 watch:
 	find . -name '*.go' | entr -c make build
 
+# =============================================================================
+# Service targets
+# =============================================================================
+
+SERVICE_FILE := sessions-watcher.service
+SERVICE_DIR := $(HOME)/.config/systemd/user
+
+install-service: install-local-force
+	@mkdir -p $(SERVICE_DIR)
+	@echo '[Unit]' > $(SERVICE_DIR)/$(SERVICE_FILE)
+	@echo 'Description=Session index watcher for Claude Code' >> $(SERVICE_DIR)/$(SERVICE_FILE)
+	@echo '' >> $(SERVICE_DIR)/$(SERVICE_FILE)
+	@echo '[Service]' >> $(SERVICE_DIR)/$(SERVICE_FILE)
+	@echo 'Type=simple' >> $(SERVICE_DIR)/$(SERVICE_FILE)
+	@echo 'ExecStart=%h/.local/bin/$(BINARY_NAME) watch' >> $(SERVICE_DIR)/$(SERVICE_FILE)
+	@echo 'Restart=on-failure' >> $(SERVICE_DIR)/$(SERVICE_FILE)
+	@echo 'RestartSec=10' >> $(SERVICE_DIR)/$(SERVICE_FILE)
+	@echo 'Environment=HOME=%h' >> $(SERVICE_DIR)/$(SERVICE_FILE)
+	@echo '' >> $(SERVICE_DIR)/$(SERVICE_FILE)
+	@echo '[Install]' >> $(SERVICE_DIR)/$(SERVICE_FILE)
+	@echo 'WantedBy=default.target' >> $(SERVICE_DIR)/$(SERVICE_FILE)
+	systemctl --user daemon-reload
+	systemctl --user enable $(SERVICE_FILE)
+	systemctl --user restart $(SERVICE_FILE)
+	@echo ""
+	@echo "$(GREEN)Service installed and started.$(NC)"
+	@echo "  Status:  systemctl --user status $(SERVICE_FILE)"
+	@echo "  Logs:    journalctl --user -u $(SERVICE_FILE) -f"
+	@echo "  Stop:    systemctl --user stop $(SERVICE_FILE)"
+	@echo "  Disable: systemctl --user disable $(SERVICE_FILE)"
+
+uninstall-service:
+	-systemctl --user stop $(SERVICE_FILE) 2>/dev/null
+	-systemctl --user disable $(SERVICE_FILE) 2>/dev/null
+	rm -f $(SERVICE_DIR)/$(SERVICE_FILE)
+	systemctl --user daemon-reload
+	@echo "$(GREEN)Service removed.$(NC)"
+
 tools:
 	@echo "$(GREEN)Installing development tools...$(NC)"
 	go install golang.org/x/tools/cmd/goimports@latest
@@ -147,6 +185,10 @@ help:
 	@echo ""
 	@echo "  $(GREEN)CI Pipeline:$(NC)"
 	@echo "    ci             - Full CI pipeline"
+	@echo ""
+	@echo "  $(GREEN)Service:$(NC)"
+	@echo "    install-service   - Build, install, and start systemd watcher service"
+	@echo "    uninstall-service - Stop and remove systemd service"
 	@echo ""
 	@echo "  $(GREEN)Utility:$(NC)"
 	@echo "    tools          - Install development tools"

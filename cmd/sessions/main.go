@@ -15,6 +15,7 @@ import (
 	"github.com/thassiov/sessions/internal/hook"
 	"github.com/thassiov/sessions/internal/index"
 	"github.com/thassiov/sessions/internal/search"
+	"github.com/thassiov/sessions/internal/watch"
 )
 
 var (
@@ -43,7 +44,7 @@ func main() {
 var subcommands = []string{
 	"search", "find", "recent", "tools", "topics",
 	"stats", "index", "version", "help", "completion",
-	"context", "analytics", "hook",
+	"context", "analytics", "hook", "watch",
 }
 
 func isSubcommand(arg string) bool {
@@ -78,6 +79,7 @@ func run() error {
 	rootCmd.AddCommand(newAnalyticsCmd(&dbPath))
 	rootCmd.AddCommand(newIndexCmd(&dbPath))
 	rootCmd.AddCommand(newHookCmd(&dbPath))
+	rootCmd.AddCommand(newWatchCmd(&dbPath))
 
 	return rootCmd.Execute()
 }
@@ -393,6 +395,40 @@ func newHookCmd(dbPath *string) *cobra.Command {
 
 			hook.Handle(event, sessionID, database, cfg, logger)
 			return nil
+		},
+	}
+}
+
+func newWatchCmd(dbPath *string) *cobra.Command {
+	return &cobra.Command{
+		Use:   "watch",
+		Short: "Watch session files and index on change",
+		Long:  "Monitors ~/.claude/projects/ for JSONL file changes and automatically indexes sessions + captures topics.",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			cfg, err := loadConfig(dbPath)
+			if err != nil {
+				return err
+			}
+
+			database, err := db.Open(cfg.DBPath)
+			if err != nil {
+				return err
+			}
+			defer database.Close()
+
+			logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+				Level: slog.LevelInfo,
+			}))
+
+			// Catch up on anything missed while not running.
+			logger.Info("running incremental index on startup")
+			stats := index.Incremental(database, cfg, logger)
+			if stats.Indexed > 0 {
+				logger.Info("catch-up complete", "indexed", stats.Indexed)
+			}
+
+			w := watch.New(database, cfg, logger)
+			return w.Run(cmd.Context())
 		},
 	}
 }
