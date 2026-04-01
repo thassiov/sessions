@@ -12,6 +12,7 @@ import (
 	"github.com/thassiov/sessions/internal/analyze"
 	"github.com/thassiov/sessions/internal/config"
 	"github.com/thassiov/sessions/internal/db"
+	"github.com/thassiov/sessions/internal/hook"
 	"github.com/thassiov/sessions/internal/index"
 	"github.com/thassiov/sessions/internal/search"
 )
@@ -76,6 +77,7 @@ func run() error {
 	rootCmd.AddCommand(newContextCmd(&dbPath))
 	rootCmd.AddCommand(newAnalyticsCmd(&dbPath))
 	rootCmd.AddCommand(newIndexCmd(&dbPath))
+	rootCmd.AddCommand(newHookCmd(&dbPath))
 
 	return rootCmd.Execute()
 }
@@ -354,6 +356,45 @@ func newIndexCmd(dbPath *string) *cobra.Command {
 	cmd.Flags().BoolVar(&backfill, "backfill", false, "index all sessions (not just new/modified)")
 	cmd.Flags().StringVar(&sessionID, "session", "", "index a single session by ID")
 	return cmd
+}
+
+func newHookCmd(dbPath *string) *cobra.Command {
+	return &cobra.Command{
+		Use:   "hook [event]",
+		Short: "Handle Claude Code hook events (UserPromptSubmit, PreCompact, SessionEnd)",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			event := args[0]
+
+			// Read session ID from stdin (Claude hooks pass JSON).
+			stdinData := hook.ReadStdin(os.Stdin)
+			sessionID := stdinData.SessionID
+			if sessionID == "" {
+				sessionID = os.Getenv("CLAUDE_SESSION_ID")
+			}
+			if sessionID == "" {
+				return nil // No session ID — silently exit.
+			}
+
+			cfg, err := loadConfig(dbPath)
+			if err != nil {
+				return err
+			}
+
+			database, err := db.Open(cfg.DBPath)
+			if err != nil {
+				return err
+			}
+			defer database.Close()
+
+			logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+				Level: slog.LevelInfo,
+			}))
+
+			hook.Handle(event, sessionID, database, cfg, logger)
+			return nil
+		},
+	}
 }
 
 func newContextCmd(dbPath *string) *cobra.Command {
