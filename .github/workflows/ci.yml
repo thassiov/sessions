@@ -69,7 +69,6 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        goos: [linux]
         goarch: [amd64, arm64]
     steps:
       - uses: actions/checkout@v4
@@ -81,18 +80,12 @@ jobs:
 
       - name: Build
         env:
-          GOOS: ${{ matrix.goos }}
+          GOOS: linux
           GOARCH: ${{ matrix.goarch }}
         run: |
           mkdir -p dist
           go build -ldflags "-X main.Version=${{ github.sha }} -X main.BuildTime=$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
-            -o dist/sessions-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/sessions
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: sessions-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: dist/
+            -o dist/sessions-linux-${{ matrix.goarch }} ./cmd/sessions
 
   security:
     name: Security
