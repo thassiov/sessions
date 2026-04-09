@@ -21,24 +21,24 @@ A Go CLI that indexes Claude Code session JSONL files into SQLite with FTS5 for 
                 │ fsnotify (CREATE/WRITE)
                 │
                 ▼
-┌──────────────────────────────────────────────────┐
-│                sessions watch                     │
-│                                                   │
-│   1. DETECT     fsnotify event on .jsonl file     │
-│         │       debounce 2s (coalesce rapid writes)│
-│         ▼                                         │
-│   2. PARSE      Read JSONL line by line            │
-│         │       Extract: user prompts, tools,      │
-│         │       agents, timestamps, model,         │
-│         │       compaction summaries, titles        │
-│         ▼                                         │
-│   3. INDEX      Upsert to SQLite                   │
-│         │       sessions, tools, agents, FTS5       │
-│         ▼                                         │
-│   4. TOPIC      Extract topic from recent messages  │
-│                 Noise filter → first sentence       │
+┌──────────────────────────────────────────────────────┐
+│                sessions watch                        │
+│                                                      │
+│   1. DETECT     fsnotify event on .jsonl file        │
+│         │       debounce 2s (coalesce rapid writes)  │
+│         ▼                                            │
+│   2. PARSE      Read JSONL line by line              │
+│         │       Extract: user prompts, tools,        │
+│         │       agents, timestamps, model,           │
+│         │       compaction summaries, titles         │
+│         ▼                                            │
+│   3. INDEX      Upsert to SQLite                     │
+│         │       sessions, tools, agents, FTS5        │
+│         ▼                                            │
+│   4. TOPIC      Extract topic from recent messages   │
+│                 Noise filter → first sentence        │
 │                 → 60 char truncate → session_topics  │
-└──────────────────────────────────────────────────┘
+└──────────────────────────────────────────────────────┘
                 │
                 ▼
         ~/.session-index/sessions.db
